@@ -19,3 +19,11 @@ node .\ethereum\compile.js
 ```bash
 node .\ethereum\deploy.js
 ```
+
+**Note:** To hide API keys, a config file was used. Create ```.\ethereum\config.js``` and use this template:
+```javascript
+module.exports = {
+    mnemonic: '',
+    provider: 'https://rinkeby.infura.io/v3/accountspecificaddress'
+}
+```
