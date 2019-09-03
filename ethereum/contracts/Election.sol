@@ -8,29 +8,16 @@ contract ElectionFactory {
     address public factoryManager;
     address[] public deployedElections;
 
-    // Due to limitations of not being able to pass struct arrays or mappings into functions
-    string[] private tmpOptionsTitle;
-    string[] private tmpOptionsDescription;
-
     /// @dev initializes the contract and sets the contract manager to be the deployer of the contract
     constructor() public {
         factoryManager = msg.sender;
     }
 
     /// @dev only the factory manager is allowed functions marked with this
-    /// @notice functions with this modifier can only be used the administrator
+    /// @notice functions with this modifier can only be used by the administrator
     modifier restricted() {
         require(msg.sender == factoryManager, "only the factory manager is allowed to use this function");
         _;
-    }
-
-    /// @dev use this to add voting options to the temporary list of options that will be used when creating an Election contract
-    /// @param _title specifies the title of the option (e.g. candidate name)
-    /// @param _description specifies the description of the option (e.g. party affiliation)
-    function addOption(string memory _title, string memory _description) public restricted {
-        require(tmpOptionsTitle.length == tmpOptionsDescription.length, "options arrays are not of equal sizes");
-        tmpOptionsTitle.push(_title);
-        tmpOptionsDescription.push(_description);
     }
 
     /// @dev use this to deploy new Election contracts and reset the temporary options lists afterwards
@@ -46,16 +33,10 @@ contract ElectionFactory {
                     _title,
                     _description,
                     _startTime,
-                    _timeLimit,
-                    tmpOptionsTitle,
-                    tmpOptionsDescription
+                    _timeLimit
                 )
             )
         );
-
-        // Reset temporary variables for next contract deployment
-        delete tmpOptionsTitle;
-        delete tmpOptionsDescription;
     }
 
     /// @dev use this to return a list of addresses of all deployed Election contracts
@@ -69,13 +50,19 @@ contract ElectionFactory {
 /// @author Johannes Mols
 /// @dev This is the actual election contract where users can vote
 contract Election {
+    struct Option {
+        string title;
+        string description;
+        uint voteCount;
+    }
+
+    address public electionFactory;
     address public electionManager;
     string public title;
     string public description;
     uint public startTime;
     uint public timeLimit;
-    string[] public optionsTitle;
-    string[] public optionsDescription;
+    Option[] public options;
 
     /// @dev initializes the contract with all required parameters and sets the manager of the contract
     constructor(
@@ -83,16 +70,48 @@ contract Election {
         string memory _title,
         string memory _description,
         uint _startTime,
-        uint _timeLimit,
-        string[] memory _optionsTitle,
-        string[] memory _optionsDescription
+        uint _timeLimit
     ) public {
+        electionFactory = msg.sender;
         electionManager = _manager;
         title = _title;
         description = _description;
         startTime = _startTime;
         timeLimit = _timeLimit;
-        optionsTitle = _optionsTitle;
-        optionsDescription = _optionsDescription;
+    }
+
+    /// @dev only the factory manager is allowed functions marked with this
+    /// @notice functions with this modifier can only be used by the administrator
+    modifier manager() {
+        require(msg.sender == electionManager, "only the election manager is allowed to use this function");
+        _;
+    }
+
+    modifier factory() {
+        require(msg.sender == electionFactory, "only the election factory is allowed to use this function");
+        _;
+    }
+
+    modifier beforeElection() {
+        require(now < startTime, "only allowed before election");
+        _;
+    }
+
+    modifier duringElection() {
+        require(now > startTime && now < timeLimit, "only allowed during election");
+        _;
+    }
+
+    modifier afterElection() {
+        require(now > timeLimit, "only allowed after election");
+        _;
+    }
+
+    function addOption(string memory _title, string memory _description) public manager beforeElection {
+        options.push(Option({ title: _title, description: _description, voteCount: 0 }));
+    }
+
+    function getOptions() public view returns(Option[]) {
+        return options;
     }
 }
