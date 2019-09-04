@@ -19,18 +19,3 @@ for (let contract in output) {
         output[contract] // output content
     );
 }
-
-// RegistrationAuthority.sol
-
-electionPath = path.resolve(__dirname, 'contracts', 'RegistrationAuthority.sol');
-source = fs.readFileSync(electionPath, 'utf8');
-output = solc.compile(source, 1).contracts;
-
-fs.ensureDirSync(buildPath); // make sure that directory exists, creates it if it doesn't
-
-for (let contract in output) {
-    fs.outputJSONSync(
-        path.resolve(buildPath, contract.replace(':', '') + '.json'), // path to output file
-        output[contract] // output content
-    );
-}
