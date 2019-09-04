@@ -1,3 +1,7 @@
+# Ethereum Voting Application
+
+An ethereum based proof-of-concept voting application.
+
 # Commands
 
 ## Install dependencies
