@@ -141,14 +141,12 @@ contract Election {
     function vote(uint[] _encryptedVote) external duringElection returns(bool success) {
         require(isRegisteredVoter(msg.sender), "message sender is not a registered voter");
 
-        // check if voter has already voted. if so, allow him to vote but remove the other vote from the list
-        if(hasVoted(msg.sender)) {
-            // remove previous vote and terminate if unsuccessful
-            if (!removeVote(msg.sender)) return false;
+        votes[msg.sender].encryptedVote = _encryptedVote;
+
+        if(!hasVoted(msg.sender)) {
+            votes[msg.sender].listPointer = votesReferenceList.push(msg.sender) - 1;
         }
 
-        votes[msg.sender].encryptedVote = _encryptedVote;
-        votes[msg.sender].listPointer = votesReferenceList.push(msg.sender) - 1;
         return true;
     }
 
@@ -156,17 +154,6 @@ contract Election {
     function hasVoted(address _address) public view returns(bool) {
         if(votesReferenceList.length == 0) return false;
         return (votesReferenceList[votes[_address].listPointer] == _address);
-    }
-
-    /// @dev remove a vote during the election. this is internally used to remove an old vote when the voter submits a new one.
-    function removeVote(address _address) private duringElection returns(bool success) {
-        if(!hasVoted(_address)) return false;
-        uint rowToDelete = votes[_address].listPointer; // find the entry in the array to delete
-        address keyToMove = votesReferenceList[votesReferenceList.length - 1]; // take the last key in the array
-        votesReferenceList[rowToDelete] = keyToMove; // move that last key to the row which should be deleted
-        votes[keyToMove].listPointer = rowToDelete; // change the list pointer in the object of the moved key to represent the new index
-        votesReferenceList.length--; // reduce array size by one, removing the last entry, which was copied to another place in the array
-        return true;
     }
 
     /// @dev check the registration authority whether the address is registered as a valid voter
