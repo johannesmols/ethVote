@@ -9,6 +9,25 @@ const compiledElection = require('../ethereum/build/Election.json');
 
 let accounts, ra, ef;
 
+// https://www.npmjs.com/package/ganache-time-traveler
+advanceTimeAndBlock = async (time) => {
+    //capture current time
+    let block = await web3.eth.getBlock('latest')
+    let forwardTime = block['timestamp'] + time
+
+    return new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+        jsonrpc: '2.0',
+        method: 'evm_mine',
+        params: [forwardTime],
+        id: new Date().getTime()
+    }, (err, result) => {
+        if (err) { return reject(err) }
+        return resolve(result)
+    })
+  })
+}
+
 beforeEach(async () => {
     accounts = await web3.eth.getAccounts();
     ra = await new web3.eth.Contract(JSON.parse(compiledRegistrationAuthority.interface))
@@ -88,8 +107,8 @@ describe('Election Factory', () => {
     it('only the factory manager can access restricted functions', async () => {
         let e;
         try {
-            assert(await ef.methods.createElection('','',0,0).send({ from: accounts[0], gas: 3000000 })); // should work
-            await ef.methods.createElection('','',0,0).send({ from: accounts[1], gas: 3000000 }); // should throw an error
+            assert(await ef.methods.createElection('', '', 0, 0).send({ from: accounts[0], gas: 3000000 })); // should work
+            await ef.methods.createElection('', '', 0, 0).send({ from: accounts[1], gas: 3000000 }); // should throw an error
         } catch (err) {
             e = err;
         }
@@ -110,5 +129,105 @@ describe('Election Factory', () => {
         assert(deployedContracts.length == 2);
         assert.ok(deployedContracts[0]);
         assert.ok(deployedContracts[1]);
+    });
+});
+
+describe('Election', () => {
+    it('deploys an election contract to the blockchain', async () => {
+        await ef.methods.createElection('', '', 0, 0).send({ from: accounts[0], gas: 3000000 });
+        const deployedElections = await ef.methods.getDeployedElections().call();
+        assert.ok(deployedElections[0]);
+    });
+
+    it('all constructor parameters are applied to the contract at creation', async () => {
+        const title = 'title test', description = 'description test', startTime = 5, timeLimit = 10;
+        await ef.methods.createElection(title, description, startTime, timeLimit)
+            .send({ from: accounts[0], gas: 3000000 });
+        const electionContract = new web3.eth.Contract(
+            JSON.parse(compiledElection.interface),
+            await ef.methods.deployedElections(0).call()
+        );
+
+        assert(await electionContract.methods.electionManager().call() == accounts[0]);
+        assert(await electionContract.methods.electionFactory().call() == ef.options.address);
+        assert(await electionContract.methods.registrationAuthority().call() == ra.options.address);
+        assert(await electionContract.methods.title().call() == title);
+        assert(await electionContract.methods.description().call() == description);
+        assert(await electionContract.methods.startTime().call() == startTime);
+        assert(await electionContract.methods.timeLimit().call() == timeLimit);
+    });
+
+    it('only the election manager can access restricted functions', async () => {
+        let e;
+        try {
+            await ef.methods.createElection('a', 'b', Date.now() + 600, Date.now() + 1200)
+                .send({ from: accounts[0], gas: 3000000 });
+            const electionContract = new web3.eth.Contract(
+                JSON.parse(compiledElection.interface),
+                await ef.methods.deployedElections(0).call()
+            );
+            await electionContract.methods.addOption('', '').send({ from: accounts[1], gas: 3000000 }); // should throw an error, not the election manager
+        } catch (err) {
+            e = err;
+        }
+        assert(e);
+    });
+
+    it('the manager can add voting options before the election', async () => {
+        await ef.methods.createElection('', '', Date.now() + 600, Date.now() + 1200)
+            .send({ from: accounts[0], gas: 3000000 });
+        const electionContract = new web3.eth.Contract(
+            JSON.parse(compiledElection.interface),
+            await ef.methods.deployedElections(0).call()
+        );
+        await electionContract.methods.addOption('option 1', 'desc 1')
+            .send({ from: accounts[0], gas: 3000000 });
+        const options = await electionContract.methods.getOptions().call();
+        assert(options.length == 1);
+    });
+
+    it('a registered voter can cast their vote during their election', async () => {
+        await ra.methods.registerVoter(accounts[0]).send({ from: accounts[0], gas: 3000000 });
+        await ef.methods.createElection('', '', Math.floor((Date.now() / 1000) - 600), Math.floor((Date.now() / 1000) + 600))
+            .send({ from: accounts[0], gas: 3000000 });
+        const electionContract = new web3.eth.Contract(
+            JSON.parse(compiledElection.interface),
+            await ef.methods.deployedElections(0).call()
+        );
+        await electionContract.methods.vote([0, 1, 0]).send({ from: accounts[0], gas: 3000000 });
+        assert(await electionContract.methods.hasVoted(accounts[0]).call());
+    });
+
+    it('a non-registered voter can not cast their vote during their election', async () => {
+        let e;
+        try {
+            await ef.methods.createElection('', '', Math.floor((Date.now() / 1000) - 600), Math.floor((Date.now() / 1000) + 600))
+                .send({ from: accounts[0], gas: 3000000 });
+            const electionContract = new web3.eth.Contract(
+                JSON.parse(compiledElection.interface),
+                await ef.methods.deployedElections(0).call()
+            );
+            await electionContract.methods.vote([0, 1, 0]).send({ from: accounts[0], gas: 3000000 });
+        } catch (err) {
+            e = err;
+        }
+        assert(e);
+    });
+
+    it('a voter can vote multiple times and invalidate their previous vote each time', async () => {
+        await ra.methods.registerVoter(accounts[0]).send({ from: accounts[0], gas: 3000000 });
+        await ef.methods.createElection('', '', Math.floor(Date.now() / 1000) - 60, Math.floor((Date.now() / 1000) + 60))
+            .send({ from: accounts[0], gas: 3000000 });
+        const electionContract = new web3.eth.Contract(
+            JSON.parse(compiledElection.interface),
+            await ef.methods.deployedElections(0).call()
+        );
+        await electionContract.methods.vote([1, 0, 0]).send({ from: accounts[0], gas: 3000000 });
+        await electionContract.methods.vote([0, 0, 1]).send({ from: accounts[0], gas: 3000000 }); // change vote
+
+        await advanceTimeAndBlock(600); // advance time 10 minutes until after election
+
+        let result = await electionContract.methods.getEncryptedVoteOfVoter(accounts[0]).call();
+        assert.deepEqual(result, [0, 0, 1]); // check whether arrays are structurally equivalent (normal assert compares if it's the same object)
     });
 });
