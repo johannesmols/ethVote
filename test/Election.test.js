@@ -67,3 +67,48 @@ describe('Registration Authority', () => {
         assert(await ra.methods.voterCount().call() == 2);
     });
 });
+
+describe('Election Factory', () => {
+    it('deploys the EF contract to the blockchain', () => {
+        assert.ok(ef.options.address);
+    });
+
+    it('the manager of the contract is also its creator', async () => {
+        assert(await ef.methods.factoryManager().call() == accounts[0]);
+    });
+
+    it('the contract has a valid address to the registstration authority', async () => {
+        assert.ok(await ef.methods.registrationAuthority().call());
+    });
+
+    it('the contract has zero deployed elections initially', async () => {
+        assert(await ef.methods.getDeployedElections().call().length == undefined);
+    });
+
+    it('only the factory manager can access restricted functions', async () => {
+        let e;
+        try {
+            assert(await ef.methods.createElection('','',0,0).send({ from: accounts[0], gas: 3000000 })); // should work
+            await ef.methods.createElection('','',0,0).send({ from: accounts[1], gas: 3000000 }); // should throw an error
+        } catch (err) {
+            e = err;
+        }
+        assert(e);
+    });
+
+    it('an election contract can be deployed', async () => {
+        await ef.methods.createElection('', '', 0, 0).send({ from: accounts[0], gas: 3000000 });
+        const deployedContracts = await ef.methods.getDeployedElections().call();
+        assert(deployedContracts.length == 1);
+        assert.ok(deployedContracts[0]);
+    });
+
+    it('multiple election contracts can be deployed', async () => {
+        await ef.methods.createElection('a', 'a', 1, 2).send({ from: accounts[0], gas: 3000000 });
+        await ef.methods.createElection('b', 'b', 3, 4).send({ from: accounts[0], gas: 3000000 });
+        const deployedContracts = await ef.methods.getDeployedElections().call();
+        assert(deployedContracts.length == 2);
+        assert.ok(deployedContracts[0]);
+        assert.ok(deployedContracts[1]);
+    });
+});
