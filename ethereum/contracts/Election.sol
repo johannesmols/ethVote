@@ -62,7 +62,6 @@ contract Election {
     struct Vote {
         uint listPointer; // index in the list of addresses that voted
         uint[] encryptedVote; // homomorphically encrypted 0 or 1 for each option. 1 being a vote. Max 1 per voter.
-        bool voted; // to check whether a vote was casted (could be useful to display user to change vote instead of vote for the first time)
     }
 
     address public electionFactory;
@@ -150,7 +149,6 @@ contract Election {
 
         votes[msg.sender].encryptedVote = _encryptedVote;
         votes[msg.sender].listPointer = votesReferenceList.push(msg.sender) - 1;
-        votes[msg.sender].voted = true;
         return true;
     }
 
