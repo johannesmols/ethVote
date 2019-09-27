@@ -27,7 +27,7 @@ contract ElectionFactory {
     /// @param _description specifies the description of the election
     /// @param _startTime specifies the beginning of the election (since Unix Epoch in seconds)
     /// @param _timeLimit specifies a time limit until when the election is open (since Unix Epoch in seconds)
-    function createElection(string memory _title, string memory _description, uint _startTime, uint _timeLimit) public restricted {
+    function createElection(string memory _title, string memory _description, uint _startTime, uint _timeLimit, string _encryptionKey) public restricted {
         deployedElections.push(
             address(
                 new Election(
@@ -36,7 +36,8 @@ contract ElectionFactory {
                     _title,
                     _description,
                     _startTime,
-                    _timeLimit
+                    _timeLimit,
+                    _encryptionKey
                 )
             )
         );
@@ -72,6 +73,7 @@ contract Election {
     uint public startTime;
     uint public timeLimit;
     Option[] public options;
+    string public encryptionKey;
 
     mapping(address => Vote) private votes; // records encrypted vote for each address
     address[] private votesReferenceList; // keeps a list of all addresses that voted
@@ -83,7 +85,8 @@ contract Election {
         string memory _title,
         string memory _description,
         uint _startTime,
-        uint _timeLimit
+        uint _timeLimit,
+        string _encryptionKey
     ) public {
         electionFactory = msg.sender;
         registrationAuthority = _registrationAuthority;
@@ -92,6 +95,7 @@ contract Election {
         description = _description;
         startTime = _startTime;
         timeLimit = _timeLimit;
+        encryptionKey = _encryptionKey;
     }
 
     /// @dev only the factory manager is allowed functions marked with this
