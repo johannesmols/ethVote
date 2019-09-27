@@ -131,6 +131,10 @@ contract Election {
         return options;
     }
 
+    function getListOfAddressesThatVoted() external view afterElection returns(address[] memory voterList) {
+        return votesReferenceList;
+    }
+
     /// @dev get the encrypted vote of a voter, only allowed after the election is over
     function getEncryptedVoteOfVoter(address _address) external view afterElection returns(uint[] memory encryptedVote) {
         return votes[_address].encryptedVote;
