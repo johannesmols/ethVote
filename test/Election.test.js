@@ -7,6 +7,8 @@ const compiledRegistrationAuthority = require("../ethereum/build/RegistrationAut
 const compiledElectionFactory = require("../ethereum/build/ElectionFactory.json");
 const compiledElection = require("../ethereum/build/Election.json");
 
+const paillier = require("paillier-js");
+
 let accounts, ra, ef;
 
 // https://www.npmjs.com/package/ganache-time-traveler
@@ -157,7 +159,7 @@ describe("Election Factory", () => {
 
     it("an election contract can be deployed", async () => {
         await ef.methods
-            .createElection("", "", 0, 0)
+            .createElection("", "", 0, 0, "")
             .send({ from: accounts[0], gas: 3000000 });
         const deployedContracts = await ef.methods
             .getDeployedElections()
@@ -168,10 +170,10 @@ describe("Election Factory", () => {
 
     it("multiple election contracts can be deployed", async () => {
         await ef.methods
-            .createElection("a", "a", 1, 2)
+            .createElection("a", "a", 1, 2, "")
             .send({ from: accounts[0], gas: 3000000 });
         await ef.methods
-            .createElection("b", "b", 3, 4)
+            .createElection("b", "b", 3, 4, "")
             .send({ from: accounts[0], gas: 3000000 });
         const deployedContracts = await ef.methods
             .getDeployedElections()
@@ -185,7 +187,7 @@ describe("Election Factory", () => {
 describe("Election", () => {
     it("deploys an election contract to the blockchain", async () => {
         await ef.methods
-            .createElection("", "", 0, 0)
+            .createElection("", "", 0, 0, "")
             .send({ from: accounts[0], gas: 3000000 });
         const deployedElections = await ef.methods
             .getDeployedElections()
@@ -199,7 +201,7 @@ describe("Election", () => {
             startTime = 5,
             timeLimit = 10;
         await ef.methods
-            .createElection(title, description, startTime, timeLimit)
+            .createElection(title, description, startTime, timeLimit, "")
             .send({ from: accounts[0], gas: 3000000 });
         const electionContract = new web3.eth.Contract(
             JSON.parse(compiledElection.interface),
@@ -251,7 +253,7 @@ describe("Election", () => {
 
     it("the manager can add voting options before the election", async () => {
         await ef.methods
-            .createElection("", "", Date.now() + 600, Date.now() + 1200)
+            .createElection("", "", Date.now() + 600, Date.now() + 1200, "")
             .send({ from: accounts[0], gas: 3000000 });
         const electionContract = new web3.eth.Contract(
             JSON.parse(compiledElection.interface),
@@ -273,7 +275,8 @@ describe("Election", () => {
                 "",
                 "",
                 Math.floor(Date.now() / 1000 - 600),
-                Math.floor(Date.now() / 1000 + 600)
+                Math.floor(Date.now() / 1000 + 600),
+                ""
             )
             .send({ from: accounts[0], gas: 3000000 });
         const electionContract = new web3.eth.Contract(
@@ -319,7 +322,8 @@ describe("Election", () => {
                 "",
                 "",
                 Math.floor(Date.now() / 1000 - 60),
-                Math.floor(Date.now() / 1000 + 60)
+                Math.floor(Date.now() / 1000 + 60),
+                ""
             )
             .send({ from: accounts[0], gas: 3000000 });
         const electionContract = new web3.eth.Contract(
@@ -339,24 +343,24 @@ describe("Election", () => {
             .getEncryptedVoteOfVoter(accounts[0])
             .call();
         assert.deepEqual(result, [0, 0, 1]); // check whether arrays are structurally equivalent (normal assert compares if it's the same object)
+
+        await advanceTimeAndBlock(-600); // reset time travel from this test
     });
 
-    it("a voter can vote multiple times and invalidate their previous vote each time 2", async () => {
-        await advanceTimeAndBlock(-600); // reset time travel from last test (doesn't reset automatically)
-
+    it("votes are encrypted and can be decrypted again", async () => {
         await ra.methods
             .registerVoter(accounts[0])
             .send({ from: accounts[0], gas: 3000000 });
-        await ra.methods
-            .registerVoter(accounts[1])
-            .send({ from: accounts[0], gas: 3000000 });
+
+        const { publicKey, privateKey } = paillier.generateRandomKeys(128); // this apparently generates numbers with 256 bits (???)
 
         await ef.methods
             .createElection(
                 "",
                 "",
                 Math.floor(Date.now() / 1000 - 60),
-                Math.floor(Date.now() / 1000 + 60)
+                Math.floor(Date.now() / 1000 + 60),
+                JSON.stringify(publicKey)
             )
             .send({ from: accounts[0], gas: 3000000 });
 
@@ -365,20 +369,22 @@ describe("Election", () => {
             await ef.methods.deployedElections(0).call()
         );
 
-        await electionContract.methods
-            .vote([1, 0, 0])
-            .send({ from: accounts[0], gas: 3000000 });
-        await electionContract.methods
-            .vote([0, 0, 1])
-            .send({ from: accounts[1], gas: 3000000 }); // change vote
+        const votes = [
+            publicKey.encrypt(1).toString(),
+            publicKey.encrypt(0).toString(),
+            publicKey.encrypt(0).toString()
+        ];
 
-        await advanceTimeAndBlock(600); // advance time 10 minutes until after election
+        await electionContract.methods
+            .vote(votes)
+            .send({ from: accounts[0], gas: 3000000 });
+
+        await advanceTimeAndBlock(600);
 
         let result = await electionContract.methods
-            .getListOfAddressesThatVoted()
+            .getEncryptedVoteOfVoter(accounts[0])
             .call();
 
-        assert(result[0] == accounts[0]);
-        assert(result[1] == accounts[1]);
+        assert.deepEqual(votes, result);
     });
 });
