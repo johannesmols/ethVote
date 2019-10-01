@@ -347,7 +347,7 @@ describe("Election", () => {
         await advanceTimeAndBlock(-600); // reset time travel from this test
     });
 
-    it("votes are encrypted and can be decrypted again", async () => {
+    it("votes are stored encrypted", async () => {
         await ra.methods
             .registerVoter(accounts[0])
             .send({ from: accounts[0], gas: 3000000 });
@@ -386,5 +386,64 @@ describe("Election", () => {
             .call();
 
         assert.deepEqual(votes, result);
+
+        await advanceTimeAndBlock(-600); // reset time travel from this test
+    });
+
+    it("election results can be published by the election manager", async () => {
+        await ra.methods
+            .registerVoter(accounts[0])
+            .send({ from: accounts[0], gas: 3000000 });
+
+        const { publicKey, privateKey } = paillier.generateRandomKeys(128);
+
+        await ef.methods
+            .createElection(
+                "",
+                "",
+                Math.floor(Date.now() / 1000 - 60),
+                Math.floor(Date.now() / 1000 + 60),
+                JSON.stringify(publicKey)
+            )
+            .send({ from: accounts[0], gas: 3000000 });
+
+        const electionContract = new web3.eth.Contract(
+            JSON.parse(compiledElection.interface),
+            await ef.methods.deployedElections(0).call()
+        );
+
+        const votes = [0, 1, 0];
+
+        const encryptedVotes = [
+            publicKey.encrypt(votes[0]).toString(),
+            publicKey.encrypt(votes[1]).toString(),
+            publicKey.encrypt(votes[2]).toString()
+        ];
+
+        await electionContract.methods
+            .vote(encryptedVotes)
+            .send({ from: accounts[0], gas: 3000000 });
+
+        await advanceTimeAndBlock(600);
+
+        let result = await electionContract.methods
+            .getEncryptedVoteOfVoter(accounts[0])
+            .call();
+
+        const decryptedVotes = [
+            Number(privateKey.decrypt(result[0])),
+            Number(privateKey.decrypt(result[1])),
+            Number(privateKey.decrypt(result[2]))
+        ];
+
+        await electionContract.methods
+            .publishResults(decryptedVotes)
+            .send({ from: accounts[0], gas: 3000000 });
+
+        const publishedResults = await electionContract.methods
+            .getResults()
+            .call();
+
+        assert.deepEqual(votes, publishedResults);
     });
 });

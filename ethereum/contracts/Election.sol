@@ -27,7 +27,13 @@ contract ElectionFactory {
     /// @param _description specifies the description of the election
     /// @param _startTime specifies the beginning of the election (since Unix Epoch in seconds)
     /// @param _timeLimit specifies a time limit until when the election is open (since Unix Epoch in seconds)
-    function createElection(string memory _title, string memory _description, uint _startTime, uint _timeLimit, string _encryptionKey) public restricted {
+    function createElection(
+        string memory _title,
+        string memory _description,
+        uint _startTime,
+        uint _timeLimit,
+        string _encryptionKey)
+        public restricted {
         deployedElections.push(
             address(
                 new Election(
@@ -74,6 +80,7 @@ contract Election {
     uint public timeLimit;
     Option[] public options;
     string public encryptionKey;
+    uint[] public publishedResult;
 
     mapping(address => Vote) private votes; // records encrypted vote for each address
     address[] private votesReferenceList; // keeps a list of all addresses that voted
@@ -135,6 +142,7 @@ contract Election {
         return options;
     }
 
+    /// @dev returns a list of addresses that participated in the election
     function getListOfAddressesThatVoted() external view afterElection returns(address[] memory voterList) {
         return votesReferenceList;
     }
@@ -142,6 +150,17 @@ contract Election {
     /// @dev get the encrypted vote of a voter, only allowed after the election is over
     function getEncryptedVoteOfVoter(address _address) external view afterElection returns(uint[] memory encryptedVote) {
         return votes[_address].encryptedVote;
+    }
+
+    /// @dev publish the decrypted version of the sum of all votes for each candidate
+    function publishResults(uint[] results) external manager afterElection returns(bool success) {
+        publishedResult = results;
+        return true;
+    }
+
+    /// @dev returns the list of final votes for each candidate
+    function getResults() external view afterElection returns(uint[] results) {
+        return publishedResult;
     }
 
     /// @dev this is used to cast a vote. the vote is homomorphically encrypted
