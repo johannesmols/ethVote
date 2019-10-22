@@ -284,7 +284,7 @@ describe("Election", () => {
             await ef.methods.deployedElections(0).call()
         );
         await electionContract.methods
-            .vote([0, 1, 0])
+            .vote(JSON.stringify([0, 1, 0]))
             .send({ from: accounts[0], gas: 3000000 });
         assert(await electionContract.methods.hasVoted(accounts[0]).call());
     });
@@ -305,7 +305,7 @@ describe("Election", () => {
                 await ef.methods.deployedElections(0).call()
             );
             await electionContract.methods
-                .vote([0, 1, 0])
+                .vote(JSON.stringify([0, 1, 0]))
                 .send({ from: accounts[0], gas: 3000000 });
         } catch (err) {
             e = err;
@@ -331,10 +331,10 @@ describe("Election", () => {
             await ef.methods.deployedElections(0).call()
         );
         await electionContract.methods
-            .vote([1, 0, 0])
+            .vote(JSON.stringify([1, 0, 0]))
             .send({ from: accounts[0], gas: 3000000 });
         await electionContract.methods
-            .vote([0, 0, 1])
+            .vote(JSON.stringify([0, 0, 1]))
             .send({ from: accounts[0], gas: 3000000 }); // change vote
 
         await advanceTimeAndBlock(600); // advance time 10 minutes until after election
@@ -342,7 +342,7 @@ describe("Election", () => {
         let result = await electionContract.methods
             .getEncryptedVoteOfVoter(accounts[0])
             .call();
-        assert.deepEqual(result, [0, 0, 1]); // check whether arrays are structurally equivalent (normal assert compares if it's the same object)
+        assert.deepEqual(result, JSON.stringify([0, 0, 1])); // check whether arrays are structurally equivalent (normal assert compares if it's the same object)
 
         await advanceTimeAndBlock(-600); // reset time travel from this test
     });
@@ -376,7 +376,7 @@ describe("Election", () => {
         ];
 
         await electionContract.methods
-            .vote(votes)
+            .vote(JSON.stringify(votes))
             .send({ from: accounts[0], gas: 3000000 });
 
         await advanceTimeAndBlock(600);
@@ -385,7 +385,7 @@ describe("Election", () => {
             .getEncryptedVoteOfVoter(accounts[0])
             .call();
 
-        assert.deepEqual(votes, result);
+        assert.deepEqual(JSON.stringify(votes), result);
 
         await advanceTimeAndBlock(-600); // reset time travel from this test
     });
@@ -421,7 +421,7 @@ describe("Election", () => {
         ];
 
         await electionContract.methods
-            .vote(encryptedVotes)
+            .vote(JSON.stringify(encryptedVotes))
             .send({ from: accounts[0], gas: 3000000 });
 
         await advanceTimeAndBlock(600);
@@ -430,10 +430,12 @@ describe("Election", () => {
             .getEncryptedVoteOfVoter(accounts[0])
             .call();
 
+        const parsedResult = JSON.parse(result);
+
         const decryptedVotes = [
-            Number(privateKey.decrypt(result[0])),
-            Number(privateKey.decrypt(result[1])),
-            Number(privateKey.decrypt(result[2]))
+            Number(privateKey.decrypt(parsedResult[0])),
+            Number(privateKey.decrypt(parsedResult[1])),
+            Number(privateKey.decrypt(parsedResult[2]))
         ];
 
         await electionContract.methods

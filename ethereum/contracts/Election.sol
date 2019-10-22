@@ -68,7 +68,7 @@ contract Election {
 
     struct Vote {
         uint listPointer; // index in the list of addresses that voted
-        uint[] encryptedVote; // homomorphically encrypted 0 or 1 for each option. 1 being a vote. Max 1 per voter.
+        string encryptedVote; // homomorphically encrypted 0 or 1 for each option. 1 being a vote. Max 1 per voter.
     }
 
     address public electionFactory;
@@ -148,7 +148,7 @@ contract Election {
     }
 
     /// @dev get the encrypted vote of a voter, only allowed after the election is over
-    function getEncryptedVoteOfVoter(address _address) external view afterElection returns(uint[] memory encryptedVote) {
+    function getEncryptedVoteOfVoter(address _address) external view afterElection returns(string memory encryptedVote) {
         return votes[_address].encryptedVote;
     }
 
@@ -165,7 +165,7 @@ contract Election {
 
     /// @dev this is used to cast a vote. the vote is homomorphically encrypted
     /// @dev allows users to vote multiple times, invalidating the previous vote
-    function vote(uint[] _encryptedVote) external duringElection returns(bool success) {
+    function vote(string _encryptedVote) external duringElection returns(bool success) {
         require(isRegisteredVoter(msg.sender), "message sender is not a registered voter");
 
         votes[msg.sender].encryptedVote = _encryptedVote;
