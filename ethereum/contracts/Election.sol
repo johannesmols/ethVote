@@ -186,7 +186,7 @@ contract Election {
     /// @dev check the registration authority whether the address is registered as a valid voter
     function isRegisteredVoter(address _address) private view returns(bool) {
         RegistrationAuthority ra = RegistrationAuthority(registrationAuthority);
-        return ra.voters(_address);
+        return ra.isVoter(_address);
     }
 }
 
@@ -194,10 +194,20 @@ contract Election {
 /// @author Johannes Mols (03.09.2019)
 /// @dev use this to register and unregister voters
 contract RegistrationAuthority {
+    struct Voter {
+        uint listPointer;
+        bool isVoter;
+        address ethAddress;
+        string name;
+        string streetAddress;
+        string birthdate;
+        string personId;
+    }
+
     address public manager;
 
-    mapping(address => bool) public voters;
-    uint public voterCount;
+    mapping(address => Voter) public voters;
+    address[] private votersReferenceList;
 
     /// @dev initializes the contract and sets the contract manager to be the deployer of the contract
     constructor() public {
@@ -211,17 +221,52 @@ contract RegistrationAuthority {
         _;
     }
 
-    /// @dev use this to register a voter
-    function registerVoter(address _voter) external restricted {
-        require(voters[_voter] == false, "this address is already registered as a voter");
-        voters[_voter] = true;
-        voterCount++;
+    /// @dev use this to register or update a voter
+    function registerOrUpdateVoter(
+        address _voter,
+        string _name,
+        string _streetAddress,
+        string _birthdate,
+        string _personId) external restricted {
+
+        if (voters[_voter].isVoter == false) {
+            voters[_voter].listPointer = votersReferenceList.push(_voter) - 1;
+            voters[_voter].isVoter = true;
+            voters[_voter].ethAddress = _voter;
+        }
+
+        voters[_voter].name = _name;
+        voters[_voter].streetAddress = _streetAddress;
+        voters[_voter].birthdate = _birthdate;
+        voters[_voter].personId = _personId;
     }
 
     /// @dev use this to unregister a voter
     function unregisterVoter(address _voter) external restricted {
-        require(voters[_voter] == true, "this address is not registered as a voter");
-        voters[_voter] = false;
-        voterCount--;
+        require(voters[_voter].isVoter == true, "this address is not registered as a voter");
+
+        // Delete the desired entry by moving the last item in the array to the row to delete, and then shorten the array by one
+        voters[_voter].isVoter = false;
+        uint rowToDelete = voters[_voter].listPointer;
+        address keyToMove = votersReferenceList[votersReferenceList.length - 1];
+        votersReferenceList[rowToDelete] = keyToMove;
+        voters[keyToMove].listPointer = rowToDelete;
+        votersReferenceList.length--;
+    }
+
+    /// @dev use this to check whether an address belongs to a valid voter
+    function isVoter(address _voter) public view returns(bool) {
+        if (votersReferenceList.length == 0) return false;
+        return (voters[_voter].isVoter);
+    }
+
+    /// @dev use this this to get the number of registered voters
+    function getNumberOfVoters() public view returns(uint) {
+        return votersReferenceList.length;
+    }
+
+    /// @dev get a list of registered voters
+    function getListOfVoters() public view returns(address[]) {
+        return votersReferenceList;
     }
 }
