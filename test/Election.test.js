@@ -62,7 +62,7 @@ describe("Registration Authority", () => {
     });
 
     it("the number of registered voters is initialized with a zero", async () => {
-        assert((await ra.methods.voterCount().call()) == 0);
+        assert((await ra.methods.getNumberOfVoters().call()) == 0);
     });
 
     it("only the manager can access restricted functions", async () => {
@@ -84,40 +84,43 @@ describe("Registration Authority", () => {
 
     it("a voter can be registerd", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
-        assert(await ra.methods.voters(accounts[0]).call()); // returns true
-        assert((await ra.methods.voterCount().call()) == 1);
+        const result = await ra.methods.voters(accounts[0]).call();
+        assert(result["isVoter"] == true);
+        assert((await ra.methods.getNumberOfVoters().call()) == 1);
     });
 
     it("a voter can be unregisterd", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
-        assert(await ra.methods.voters(accounts[0]).call()); // returns true
-        assert((await ra.methods.voterCount().call()) == 1);
+        let result = await ra.methods.voters(accounts[0]).call();
+        assert(result["isVoter"] == true);
+        assert((await ra.methods.getNumberOfVoters().call()) == 1);
 
         await ra.methods
             .unregisterVoter(accounts[0])
             .send({ from: accounts[0], gas: 3000000 });
-        assert(!(await ra.methods.voters(accounts[0]).call())); // returns false
-        assert((await ra.methods.voterCount().call()) == 0);
+        result = await ra.methods.voters(accounts[0]).call();
+        assert(result["isVoter"] == false);
+        assert((await ra.methods.getNumberOfVoters().call()) == 0);
     });
 
     it("multiple voters can be registered and unregisterd", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
         await ra.methods
-            .registerVoter(accounts[1])
+            .registerOrUpdateVoter(accounts[1], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
         await ra.methods
-            .registerVoter(accounts[2])
+            .registerOrUpdateVoter(accounts[2], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
         await ra.methods
             .unregisterVoter(accounts[1])
             .send({ from: accounts[0], gas: 3000000 });
-        assert((await ra.methods.voterCount().call()) == 2);
+        assert((await ra.methods.getNumberOfVoters().call()) == 2);
     });
 });
 
@@ -268,7 +271,7 @@ describe("Election", () => {
 
     it("a registered voter can cast their vote during their election", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
         await ef.methods
             .createElection(
@@ -315,7 +318,7 @@ describe("Election", () => {
 
     it("a voter can vote multiple times and invalidate their previous vote each time", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
         await ef.methods
             .createElection(
@@ -349,10 +352,10 @@ describe("Election", () => {
 
     it("votes are stored encrypted", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
 
-        const { publicKey, privateKey } = paillier.generateRandomKeys(128); // this apparently generates numbers with 256 bits (???)
+        const { publicKey, privateKey } = paillier.generateRandomKeys(256);
 
         await ef.methods
             .createElection(
@@ -392,10 +395,10 @@ describe("Election", () => {
 
     it("election results can be published by the election manager", async () => {
         await ra.methods
-            .registerVoter(accounts[0])
+            .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
 
-        const { publicKey, privateKey } = paillier.generateRandomKeys(128);
+        const { publicKey, privateKey } = paillier.generateRandomKeys(256);
 
         await ef.methods
             .createElection(
