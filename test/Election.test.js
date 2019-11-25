@@ -86,8 +86,7 @@ describe("Registration Authority", () => {
         await ra.methods
             .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
-        const result = await ra.methods.voters(accounts[0]).call();
-        assert(result["isVoter"] == true);
+        assert((await ra.methods.isVoter(accounts[0]).call()) == true);
         assert((await ra.methods.getNumberOfVoters().call()) == 1);
     });
 
@@ -95,15 +94,13 @@ describe("Registration Authority", () => {
         await ra.methods
             .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
-        let result = await ra.methods.voters(accounts[0]).call();
-        assert(result["isVoter"] == true);
+        assert((await ra.methods.isVoter(accounts[0]).call()) == true);
         assert((await ra.methods.getNumberOfVoters().call()) == 1);
 
         await ra.methods
             .unregisterVoter(accounts[0])
             .send({ from: accounts[0], gas: 3000000 });
-        result = await ra.methods.voters(accounts[0]).call();
-        assert(result["isVoter"] == false);
+        assert((await ra.methods.isVoter(accounts[0]).call()) == false);
         assert((await ra.methods.getNumberOfVoters().call()) == 0);
     });
 

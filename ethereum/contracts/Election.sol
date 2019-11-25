@@ -206,7 +206,7 @@ contract RegistrationAuthority {
 
     address public manager;
 
-    mapping(address => Voter) public voters;
+    mapping(address => Voter) private voters;
     address[] private votersReferenceList;
 
     /// @dev initializes the contract and sets the contract manager to be the deployer of the contract
@@ -268,5 +268,10 @@ contract RegistrationAuthority {
     /// @dev get a list of registered voters
     function getListOfVoters() public view returns(address[]) {
         return votersReferenceList;
+    }
+
+    /// @dev get details of a specific voter
+    function getVoterDetails(address _voter) public view returns(Voter) {
+        return voters[_voter];
     }
 }
