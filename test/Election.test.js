@@ -130,7 +130,7 @@ describe("Election Factory", () => {
         assert((await ef.methods.factoryManager().call()) == accounts[0]);
     });
 
-    it("the contract has a valid address to the registstration authority", async () => {
+    it("the contract has a valid address to the registration authority", async () => {
         assert.ok(await ef.methods.registrationAuthority().call());
     });
 
