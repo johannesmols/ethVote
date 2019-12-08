@@ -104,7 +104,7 @@ describe("Registration Authority", () => {
         assert((await ra.methods.getNumberOfVoters().call()) == 0);
     });
 
-    it("multiple voters can be registered and unregisterd", async () => {
+    it("multiple voters can be registered and unregistered", async () => {
         await ra.methods
             .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
