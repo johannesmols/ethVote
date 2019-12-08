@@ -82,7 +82,7 @@ describe("Registration Authority", () => {
         assert(e);
     });
 
-    it("a voter can be registerd", async () => {
+    it("a voter can be registered", async () => {
         await ra.methods
             .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
@@ -90,7 +90,7 @@ describe("Registration Authority", () => {
         assert((await ra.methods.getNumberOfVoters().call()) == 1);
     });
 
-    it("a voter can be unregisterd", async () => {
+    it("a voter can be unregistered", async () => {
         await ra.methods
             .registerOrUpdateVoter(accounts[0], "", "", "", "")
             .send({ from: accounts[0], gas: 3000000 });
