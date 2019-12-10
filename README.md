@@ -2,6 +2,8 @@
 
 An ethereum based proof-of-concept voting application.
 
+[Front-end Application](https://github.com/johannesmols/ethVote-react)
+
 # Commands
 
 ## Install dependencies
