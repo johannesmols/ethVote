@@ -1,4 +1,4 @@
-pragma solidity ^0.4.26;
+pragma solidity 0.4.26;
 pragma experimental ABIEncoderV2; // needed to be able to pass string arrays and structs into functions
 
 /// @title Election Factory
